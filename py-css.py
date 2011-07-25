@@ -139,7 +139,112 @@ def ncss(str):
                 tmp = ''
                 space = True
         elif token == Slash:
+            if not boundary and len(tmp) > 0:
+                app += ' '
+            boundary = True
             space = False
+            tmp += c
+        elif token == Star:
+            if tmp == '/' and (len(buf) == 0 or buf[-1] != '>'):
+                comment = True
+            space = False
+            tmp += c
+        elif token == Quote:
+            if not skip:
+                if c == '"': quote = True
+                if c == "'": squote = True
+            if not boundary: app += ' '
+            boundary = True
+            space = False
+            app += tmp
+            app += c
+            tmp = ''
+        elif token == Equals:
+            if not boundary: app += ' '
+            boundary = True
+            space = False
+            app += tmp
+            app += c
+            tmp = ''
+        elif token == Colon:
+            if space and not rule: app += ' '
+            boundary = True
+            space = False
+            app += tmp
+            app += c
+            tmp = ''
+        elif token == Period or token == Hyphen:
+            if not rule:
+                if space and not boundary: app += ' '
+                boundary = True
+                app += tmp
+                app += c
+                tmp = ''
+            else:
+                tmp += c
+            space = False
+        elif token == LeftBrace:
+            if not boundary and len(tmp) > 0: app += ' '
+            boundary = True
+            space = False
+            rule = True
+            app += tmp
+            app += c
+            tmp = ''
+        elif token == RightBrace:
+            if not boundary and len(tmp) > 0: app += ' '
+            boundary = True
+            space = False
+            rule = False
+            app += tmp
+            app += c
+            tmp = ''
+        elif token == RightBracket:
+            boundary = True
+            space = False
+            app += tmp
+            app += c
+            tmp = ''
+        elif token == LeftParen:
+            if not boundary: app += ' '
+            boundary = True
+            space = True
+            app += tmp
+            app += c
+            tmp = ''
+        elif token == GT:
+            boundary = True
+            space = False
+            app += tmp
+            app += c
+            tmp = ''
+        elif token == Comma:
+            boundary = True
+            space = False
+            if rgb:
+                app += hex(tmp)
+            else:
+                app += tmp
+                app += c
+            tmp = ''
+        elif token == SemiColon:
+            if not boundary: app += ' '
+            boundary = True
+            Space = False
+            if skip:
+                skip = False
+            else:
+                if rgb:
+                    app += hex(tmp[0:-1])
+                    # todo: shorten
+                    app += c
+                    tmp = ''
+                    rgb = False
+                else:
+                    app += tmp
+                    # todo
+                    tmp = ''
+                    rgb = False
         else:
             tmp += c
             space = False
