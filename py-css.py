@@ -78,8 +78,8 @@ def tokenize(char):
             return token
     return Token()
 
-ZERO_VALUES = re.compile('\b0(?:px|pt|in|cm|mm|em|%|pc|ex)')
-SMALL_FLOATS = re.compile('0\.(\d+)(\w*)')
+ZERO_VALUES = re.compile(r'\b0(?:px|pt|in|cm|mm|em|%|pc|ex)')
+SMALL_FLOATS = re.compile('0\.(\d+)(px|pt|in|cm|mm|em|%|pc|ex|)')
 IEALPHA = re.compile('("?)(progid\:DXImageTransform\.Microsoft\.Alpha\(Opacity\=)(\d+)\)("?)', re.I)
 
 def toHex(n):
@@ -111,13 +111,13 @@ def ncss(s):
             tmp += c
             if c == '/' and s[i-1] == '*':
                 if s[i-2] == '\\': # ie5mac hack
-                    buf == '/*\\*/'
+                    buf += '/*\\*/'
                     ie5mac = True
                 elif ie5mac:
                     buf += '/**/'
                     ie5mac = False
-                elif tmp[2] == '!':
-                    buf += c
+                elif tmp[2] == '!': # important comments
+                    buf += tmp
                 tmp = ''
                 comment = False
             continue
@@ -128,7 +128,7 @@ def ncss(s):
                 quote = False
                 squote = False
                 if filter and s[i-1] == ')':
-                    buf = re.sub(IEALPHA, '\1alpha(opacity=\3)\4', buf)
+                    buf = re.sub(IEALPHA, r'\1alpha(opacity=\3)\4', buf)
                     filter = false
             continue
 
@@ -211,7 +211,7 @@ def ncss(s):
             app += c
             tmp = ''
         elif token == RightBracket:
-            boundary = True
+            boundary = False
             space = False
             app += tmp
             app += c
@@ -270,6 +270,7 @@ def ncss(s):
                     skip = True
                 else:
                     charset = True
+                    buf += app
             elif app == ' rgb(':
                 rgb = True
                 buf += ' #'
@@ -283,12 +284,13 @@ def ncss(s):
                     # empty rule
                     if buf[-1] == '{':
                         x = 0
-                        z = len(buf) - 1
+                        z = len(buf) - 2
                         while x == 0 and z >= 0:
                             if buf[z] == '{' or buf[z] == '}' or\
                                     buf[z] == ';' or (buf[z] == '/' and\
                                     buf[z-1] == '*'):
                                 x = z + 1
+                            z -= 1
                         buf = buf[0:x]
                         continue
                     # drop last semi-colon
@@ -298,12 +300,12 @@ def ncss(s):
                     filter = True
 
                 app = re.sub(ZERO_VALUES, '0', app)
-                app = re.sub(SMALL_FLOATS, '.\1\2', app)
+                app = re.sub(SMALL_FLOATS, r'.\1\2', app)
 
                 buf += app
 
                 if filter and (buf[-1] == ')' or buf[-2] == ')'):
-                    buf = re.sub(IEALPHA, '\1alpha(opacity=\3)\4', buf)
+                    buf = re.sub(IEALPHA, r'\1alpha(opacity=\3)\4', buf)
                     filter = False
 
                 #  #AABBCC
