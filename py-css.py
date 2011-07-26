@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import re
+
 class Token:
     def matches(self, char):
         return True
@@ -76,7 +78,16 @@ def tokenize(char):
             return token
     return Token()
 
-def ncss(str):
+ZERO_VALUES = re.compile('\b0(?:px|pt|in|cm|mm|em|%|pc|ex)')
+SMALL_FLOATS = re.compile('0\.(\d+)(\w*)')
+IEALPHA = re.compile('("?)(progid\:DXImageTransform\.Microsoft\.Alpha\(Opacity\=)(\d+)\)("?)', re.I)
+
+def toHex(n):
+    h = hex(int(n))[2:]
+    if len(h) == 1: h = '0' + h
+    return h
+
+def ncss(s):
     """Minify a string of CSS.
     """
     buf = ''
@@ -95,11 +106,11 @@ def ncss(str):
     media    = False
     rule     = False
 
-    for i, c in enumerate(str):
+    for i, c in enumerate(s):
         if comment:
             tmp += c
-            if c == '/' and str[i-1] == '*':
-                if str[i-2] == '\\': # ie5mac hack
+            if c == '/' and s[i-1] == '*':
+                if s[i-2] == '\\': # ie5mac hack
                     buf == '/*\\*/'
                     ie5mac = True
                 elif ie5mac:
@@ -113,11 +124,11 @@ def ncss(str):
 
         if quote or squote:
             buf += c
-            if ((quote and c == '"') or (squote and c == "'")) and str[i-1] != '\\':
+            if ((quote and c == '"') or (squote and c == "'")) and s[i-1] != '\\':
                 quote = False
                 squote = False
-                if filter and str[i-1] == ')':
-                    #buf = buf.replace(IEALPHA, '')
+                if filter and s[i-1] == ')':
+                    buf = re.sub(IEALPHA, '\1alpha(opacity=\3)\4', buf)
                     filter = false
             continue
 
@@ -127,7 +138,7 @@ def ncss(str):
         if token == Whitespace:
             if rgb:
                 if len(tmp) > 0:
-                    app += hex(tmp[0:-1])
+                    app += toHex(tmp[0:-1])
                 tmp = ''
             else:
                 if not boundary:
@@ -222,7 +233,7 @@ def ncss(str):
             boundary = True
             space = False
             if rgb:
-                app += hex(tmp)
+                app += toHex(tmp)
             else:
                 app += tmp
                 app += c
@@ -235,14 +246,18 @@ def ncss(str):
                 skip = False
             else:
                 if rgb:
-                    app += hex(tmp[0:-1])
-                    # todo: shorten
+                    app += toHex(tmp[0:-1])
+                    if len(app) >= 2 and app[0] == app[1] and\
+                            buf[-1] == buf[-2] and buf[-3] == buf[-4]:
+                        app = buf[-3] + buf[-1] + app[0]
+                        buf = buf[0:-4]
                     app += c
                     tmp = ''
                     rgb = False
                 else:
                     app += tmp
-                    # todo
+                    if buf[-1] != ';' and buf[-1] != '{':
+                        app += ';'
                     tmp = ''
                     rgb = False
         else:
@@ -250,17 +265,93 @@ def ncss(str):
             space = False
 
         if len(app) > 0:
-            # charset
-            # rgb
-            if not skip:
-                # lowercase
-                # }
-                # filter
+            if app == '@charset':
+                if charset:
+                    skip = True
+                else:
+                    charset = True
+            elif app == ' rgb(':
+                rgb = True
+                buf += ' #'
+            elif app == 'rgb(':
+                rgb = True
+                buf += '#'
+            elif not skip:
+                if rule and app[-1] != '{':
+                    app = app.lower()
+                if app == '}':
+                    # empty rule
+                    if buf[-1] == '{':
+                        x = 0
+                        z = len(buf) - 1
+                        while x == 0 and z >= 0:
+                            if buf[z] == '{' or buf[z] == '}' or\
+                                    buf[z] == ';' or (buf[z] == '/' and\
+                                    buf[z-1] == '*'):
+                                x = z + 1
+                        buf = buf[0:x]
+                        continue
+                    # drop last semi-colon
+                    elif buf[-1] == ';':
+                        buf = buf[0:-1]
+                elif app == '-ms-filter' or app == 'filter:':
+                    filter = True
 
-                # zero values
-                # small floats
+                app = re.sub(ZERO_VALUES, '0', app)
+                app = re.sub(SMALL_FLOATS, '.\1\2', app)
 
                 buf += app
+
+                if filter and (buf[-1] == ')' or buf[-2] == ')'):
+                    buf = re.sub(IEALPHA, '\1alpha(opacity=\3)\4', buf)
+                    filter = False
+
+                #  #AABBCC
+                if len(buf) >= 8 and buf[-1] != '"' and buf[-8] == '#' and\
+                        buf[-7].lower() == buf[-6].lower() and\
+                        buf[-5].lower() == buf[-4].lower() and\
+                        buf[-3].lower() == buf[-2].lower():
+                    c = buf[-6] + buf[-4] + buf[-2] + buf[-1]
+                    buf = buf[0:-7] + c.lower()
+
+                # margin:0
+                if buf[-15:-1] == 'margin:0 0 0 0':
+                    buf = buf[0:-15] + 'margin:0' + buf[-1]
+                elif buf[-13:-1] == 'margin:0 0 0':
+                    buf = buf[0:-13] + 'margin:0' + buf[-1]
+                elif buf[-11:-1] == 'margin:0 0':
+                    buf = buf[0:-11] + 'margin:0' + buf[-1]
+                # padding:0
+                elif buf[-16:-1] == 'padding:0 0 0 0':
+                    buf = buf[0:-16] + 'padding:0' + buf[-1]
+                elif buf[-14:-1] == 'padding:0 0 0':
+                    buf = buf[0:-14] + 'padding:0' + buf[-1]
+                elif buf[-12:-1] == 'padding:0 0':
+                    buf = buf[0:-12] + 'padding:0' + buf[-1]
+                # border
+                elif buf[-12:-1] == 'border:none':
+                    buf = buf[0:-12] + 'border:0' + buf[-1]
+                elif buf[-16:-1] == 'border-top:none':
+                    buf = buf[0:-16] + 'border-top:0' + buf[-1]
+                elif buf[-19:-1] == 'border-bottom:none':
+                    buf = buf[0:-19] + 'border-bottom:0' + buf[-1]
+                elif buf[-17:-1] == 'border-left:none':
+                    buf = buf[0:-17] + 'border-left:0' + buf[-1]
+                elif buf[-18:-1] == 'border-right:none':
+                    buf = buf[0:-18] + 'border-right:0' + buf[-1]
+                # outline
+                elif buf[-13:-1] == 'outline:none':
+                    buf = buf[0:-13] + 'outline:0' + buf[-1]
+                # background
+                elif buf[-16:-1] == 'background:none':
+                    buf = buf[0:-16] + 'background:0' + buf[-1]
+                # background-position
+                elif buf[-28:-1] == 'background-position:0 0 0 0':
+                    buf = buf[0:-28] + 'background-position:0 0' + buf[-1]
+                # :first-letter and :first-line must be followed by a space
+                elif buf[-14:-1] == ':first-letter'\
+                        or buf[-12:-1] == ':first-line':
+                    buf = buf[0:-1] + ' ' + buf[-1]
 
     return buf
 
