@@ -1,99 +1,10 @@
 #!/usr/bin/env python
 
-class Token:
-    pass
+import sys
+from optparse import OptionParser
+from py_css.token import *
 
-class Whitespace(Token):
-    @staticmethod
-    def matches():
-        return (' ', '\n', '\r', '\f', '\0', '\b', '\t', '\v')
-
-class Slash(Token):
-    @staticmethod
-    def matches():
-        return ('/')
-
-class Star(Token):
-    @staticmethod
-    def matches():
-        return ('*')
-
-class Quote(Token):
-    @staticmethod
-    def matches():
-        return ('"', "'")
-
-class Equals(Token):
-    @staticmethod
-    def matches():
-        return ('=')
-
-class Colon(Token):
-    @staticmethod
-    def matches():
-        return (':')
-
-class Period(Token):
-    @staticmethod
-    def matches():
-        return ('.')
-
-class Hyphen(Token):
-    @staticmethod
-    def matches():
-        return ('-')
-
-class LeftBrace(Token):
-    @staticmethod
-    def matches():
-        return ('{')
-
-class RightBrace(Token):
-    @staticmethod
-    def matches():
-        return ('}')
-
-class RightBracket(Token):
-    @staticmethod
-    def matches():
-        return (']')
-
-class LeftParen(Token):
-    @staticmethod
-    def matches():
-        return ('(')
-
-class GT(Token):
-    @staticmethod
-    def matches():
-        return ('>')
-
-class Comma(Token):
-    @staticmethod
-    def matches():
-        return (',')
-
-class SemiColon(Token):
-    @staticmethod
-    def matches():
-        return (';')
-
-TOKENS = [Whitespace, Slash, Star, Quote, Equals, Colon, Period,
-          Hyphen, LeftBrace, RightBrace, RightBracket, LeftParen,
-          GT, Comma, SemiColon]
-TOKEN_MAP = {}
-
-for token in TOKENS:
-    for char in token.matches():
-        TOKEN_MAP[char] = token
-
-def tokenize(char):
-    """Return the token for the given character."""
-    if char in TOKEN_MAP:
-        return TOKEN_MAP[char]
-    return Token
-
-UNITS = ('px', 'em', 'pt', 'in', 'cm', 'mm', 'pc', 'ex')
+UNITS = set(('px', 'em', 'pt', 'in', 'cm', 'mm', 'pc', 'ex'))
 IEALPHA = 'progid:dximagetransform.microsoft.alpha(opacity='
 
 def minify(s, bufferOutput=True, debug=False):
@@ -171,7 +82,7 @@ def minify(s, bufferOutput=True, debug=False):
             space = False
             tmp += c
         elif token == Star:
-            if tmp == '/' and (len(buf) == 0 or buf[-1] != '>'):
+            if tmp == '/' and (not buf or buf[-1] != '>'):
                 comment = True
             space = False
             tmp += c
@@ -279,7 +190,7 @@ def minify(s, bufferOutput=True, debug=False):
             tmp += c
             space = False
 
-        if len(app) > 0:
+        if app:
             if app == '@charset':
                 if charset:
                     skip = True
@@ -296,15 +207,15 @@ def minify(s, bufferOutput=True, debug=False):
                 if rule and app[-1] != '{':
                     app = app.lower()
                 if app == '}':
-                    if len(buf) > 0:
+                    if buf:
                         # empty rule
                         if buf[-1] == '{':
                             x = 0
                             z = len(buf) - 2
                             while x == 0 and z >= 0:
-                                if buf[z] == '{' or buf[z] == '}' or\
-                                        buf[z] == ';' or (buf[z] == '/' and\
-                                        buf[z-1] == '*'):
+                                if (buf[z] == '{' or buf[z] == '}' or
+                                        buf[z] == ';' or (buf[z] == '/' and
+                                        buf[z-1] == '*')):
                                     x = z + 1
                                 z -= 1
                             buf = buf[0:x]
@@ -323,22 +234,23 @@ def minify(s, bufferOutput=True, debug=False):
                     filter = True
 
                 # zero values
-                if len(app) >= 2 and app[0] == '0' and\
-                        (app[1:3] in UNITS or app[1] == '%'):
+                app_len = len(app)
+                if (app_len >= 2 and app[0] == '0' and
+                        (app[1:3] in UNITS or app[1] == '%')):
                     if app[-1] == ';':
                         app = '0;'
                     else:
                         app = '0'
-                elif len(app) >= 3 and app[0:2] == ' 0' and (app[2] == '%' or\
-                        (len(app) >= 4 and app[2:4] in UNITS)):
+                elif (app_len >= 3 and app[0:2] == ' 0' and (app[2] == '%' or
+                        app_len >= 4 and app[2:4] in UNITS)):
                     if app[-1] == ';':
                         app = ' 0;'
                     else:
                         app = ' 0'
                 # small floats
-                elif len(app) >= 3 and app[0:2] == '0.':
+                elif app_len >= 3 and app[0:2] == '0.':
                     app = app[1:]
-                elif len(app) >= 4 and app[0:3] == ' 0.':
+                elif app_len >= 4 and app[0:3] == ' 0.':
                     app = ' ' + app[2:]
 
                 buf += app
@@ -353,8 +265,8 @@ def minify(s, bufferOutput=True, debug=False):
                 #  #AABBCC
                 if len(buf) >= 8 and buf[-1] != '"' and buf[-8] == '#':
                     lbuf = buf[-7:].lower()
-                    if lbuf[0] == lbuf[1] and lbuf[2] == lbuf[3] and\
-                            lbuf[4] == lbuf[5]:
+                    if (lbuf[0] == lbuf[1] and lbuf[2] == lbuf[3] and
+                            lbuf[4] == lbuf[5]):
                         c = lbuf[0] + lbuf[2] + lbuf[4] + buf[-1]
                         buf = buf[0:-7] + c
 
@@ -413,9 +325,7 @@ def minify(s, bufferOutput=True, debug=False):
         return out + buf
 
 
-if __name__ == "__main__":
-    import sys
-    from optparse import OptionParser
+def main():
     parser = OptionParser()
     parser.add_option("-d", "--debug",
                       action="store_true", dest="debug", default=False,
@@ -429,3 +339,6 @@ if __name__ == "__main__":
     else:
         css = sys.stdin.read()
         minify(css, False, options.debug)
+
+if __name__ == "__main__":
+    main()
