@@ -96,8 +96,8 @@ addN()
 
 addY()
 {
-  benches+=('yui-2.4.2', 'yui-2.4.6')
-  commands+=("java -jar yuicompressor-2.4.2.jar --type css", "java -jar yuicompressor-2.4.6.jar --type css")
+  benches+=('yui-2.4.2' 'yui-2.4.6')
+  commands+=("java -jar yuicompressor-2.4.2.jar --type css" "java -jar yuicompressor-2.4.6.jar --type css")
 }
 
 for i in $*
