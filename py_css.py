@@ -3,80 +3,99 @@
 import re
 
 class Token:
-    def matches(self, char):
-        return True
+    pass
 
 class Whitespace(Token):
-    def matches(self, char):
-        return char in (' ', '\n', '\r', '\f', '\0', '\b', '\t', '\v')
+    @staticmethod
+    def matches():
+        return (' ', '\n', '\r', '\f', '\0', '\b', '\t', '\v')
 
 class Slash(Token):
-    def matches(self, char):
-        return char == '/'
+    @staticmethod
+    def matches():
+        return ('/')
 
 class Star(Token):
-    def matches(self, char):
-        return char == '*'
+    @staticmethod
+    def matches():
+        return ('*')
 
 class Quote(Token):
-    def matches(self, char):
-        return char in ('"', "'")
+    @staticmethod
+    def matches():
+        return ('"', "'")
 
 class Equals(Token):
-    def matches(self, char):
-        return char == '='
+    @staticmethod
+    def matches():
+        return ('=')
 
 class Colon(Token):
-    def matches(self, char):
-        return char == ':'
+    @staticmethod
+    def matches():
+        return (':')
 
 class Period(Token):
-    def matches(self, char):
-        return char == '.'
+    @staticmethod
+    def matches():
+        return ('.')
 
 class Hyphen(Token):
-    def matches(self, char):
-        return char == '-'
+    @staticmethod
+    def matches():
+        return ('-')
 
 class LeftBrace(Token):
-    def matches(self, char):
-        return char == '{'
+    @staticmethod
+    def matches():
+        return ('{')
 
 class RightBrace(Token):
-    def matches(self, char):
-        return char == '}'
+    @staticmethod
+    def matches():
+        return ('}')
 
 class RightBracket(Token):
-    def matches(self, char):
-        return char == ']'
+    @staticmethod
+    def matches():
+        return (']')
 
 class LeftParen(Token):
-    def matches(self, char):
-        return char == '('
+    @staticmethod
+    def matches():
+        return ('(')
 
 class GT(Token):
-    def matches(self, char):
-        return char == '>'
+    @staticmethod
+    def matches():
+        return ('>')
 
 class Comma(Token):
-    def matches(self, char):
-        return char == ','
+    @staticmethod
+    def matches():
+        return (',')
 
 class SemiColon(Token):
-    def matches(self, char):
-        return char == ';'
+    @staticmethod
+    def matches():
+        return (';')
 
 TOKENS = [Whitespace(), Slash(), Star(), Quote(), Equals(), Colon(), Period(),
           Hyphen(), LeftBrace(), RightBrace(), RightBracket(), LeftParen(),
-          GT(), Comma(), SemiColon(), Token()]
+          GT(), Comma(), SemiColon()]
+TOKEN_MAP = {}
+
+for token in TOKENS:
+    for char in token.matches():
+        TOKEN_MAP[char] = token
+
+_token = Token()
 
 def tokenize(char):
-    """Return the token for the given character.
-    """
-    for token in TOKENS:
-        if token.matches(char):
-            return token
-    return Token()
+    """Return the token for the given character."""
+    if char in TOKEN_MAP:
+        return TOKEN_MAP[char]
+    return _token
 
 UNITS = ('px', 'em', 'pt', 'in', 'cm', 'mm', 'pc', 'ex')
 IEALPHA = re.compile('("?)(progid\:DXImageTransform\.Microsoft\.Alpha\(Opacity\=)(\d+)\)("?)', re.I)
@@ -87,8 +106,7 @@ def toHex(n):
     return h
 
 def minify(s, bufferOutput=True, debug=False):
-    """Minify a string of CSS.
-    """
+    """Minify a string of CSS."""
     buf = ''
     out = ''
     tmp = ''
