@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import re
-
 class Token:
     pass
 
@@ -80,30 +78,23 @@ class SemiColon(Token):
     def matches():
         return (';')
 
-TOKENS = [Whitespace(), Slash(), Star(), Quote(), Equals(), Colon(), Period(),
-          Hyphen(), LeftBrace(), RightBrace(), RightBracket(), LeftParen(),
-          GT(), Comma(), SemiColon()]
+TOKENS = [Whitespace, Slash, Star, Quote, Equals, Colon, Period,
+          Hyphen, LeftBrace, RightBrace, RightBracket, LeftParen,
+          GT, Comma, SemiColon]
 TOKEN_MAP = {}
 
 for token in TOKENS:
     for char in token.matches():
         TOKEN_MAP[char] = token
 
-_token = Token()
-
 def tokenize(char):
     """Return the token for the given character."""
     if char in TOKEN_MAP:
         return TOKEN_MAP[char]
-    return _token
+    return Token
 
 UNITS = ('px', 'em', 'pt', 'in', 'cm', 'mm', 'pc', 'ex')
-IEALPHA = re.compile('("?)(progid\:DXImageTransform\.Microsoft\.Alpha\(Opacity\=)(\d+)\)("?)', re.I)
-
-def toHex(n):
-    h = hex(int(n))[2:]
-    if len(h) == 1: h = '0' + h
-    return h
+IEALPHA = 'progid:dximagetransform.microsoft.alpha(opacity='
 
 def minify(s, bufferOutput=True, debug=False):
     """Minify a string of CSS."""
@@ -145,33 +136,36 @@ def minify(s, bufferOutput=True, debug=False):
 
         if quote or squote:
             buf += c
-            if ((quote and c == '"') or (squote and c == "'")) and s[i-1] != '\\':
+            if ((quote and c == '"') or (squote and c == "'")) and buf[-2] != '\\':
                 quote = False
                 squote = False
-                if filter and s[i-1] == ')':
-                    buf = re.sub(IEALPHA, r'\1alpha(opacity=\3)\4', buf)
-                    filter = false
+                if filter and buf[-2] == ')':
+                    x = buf.lower().find(IEALPHA)
+                    if x >= 0:
+                        y = x + len(IEALPHA)
+                        buf = buf[0:x] + 'alpha(opacity=' + buf[y:]
+                    filter = False
             continue
 
         app = ''
-        token = tokenize(c).__class__
+        token = tokenize(c)
 
         if token == Whitespace:
             if rgb:
-                if len(tmp) > 0:
-                    app += toHex(tmp[0:-1])
+                if tmp:
+                    app += '%02x' % int(tmp[0:-1])
                 tmp = ''
             else:
                 if not boundary:
                     app = ' '
-                if len(tmp) > 0:
+                if tmp:
                     app += tmp
                     if app[-1] != '/':
                         boundary = False
                 tmp = ''
                 space = True
         elif token == Slash:
-            if not boundary and len(tmp) > 0:
+            if not boundary and tmp:
                 app += ' '
             boundary = True
             space = False
@@ -216,7 +210,7 @@ def minify(s, bufferOutput=True, debug=False):
                 tmp += c
             space = False
         elif token == LeftBrace:
-            if not boundary and len(tmp) > 0: app += ' '
+            if not boundary and tmp: app += ' '
             boundary = True
             space = False
             rule = True
@@ -224,7 +218,7 @@ def minify(s, bufferOutput=True, debug=False):
             app += c
             tmp = ''
         elif token == RightBrace:
-            if not boundary and len(tmp) > 0: app += ' '
+            if not boundary and tmp: app += ' '
             boundary = True
             space = False
             rule = False
@@ -254,7 +248,7 @@ def minify(s, bufferOutput=True, debug=False):
             boundary = True
             space = False
             if rgb:
-                app += toHex(tmp)
+                app += '%02x' % int(tmp)
             else:
                 app += tmp
                 app += c
@@ -267,7 +261,7 @@ def minify(s, bufferOutput=True, debug=False):
                 skip = False
             else:
                 if rgb:
-                    app += toHex(tmp[0:-1])
+                    app += '%02x' % int(tmp[0:-1])
                     if len(app) >= 2 and app[0] == app[1] and\
                             buf[-1] == buf[-2] and buf[-3] == buf[-4]:
                         app = buf[-3] + buf[-1] + app[0]
@@ -325,7 +319,7 @@ def minify(s, bufferOutput=True, debug=False):
                         elif buf[-1] == ';':
                             buf = buf[0:-1]
                     ruleEnd = True
-                elif app == '-ms-filter' or app == 'filter:':
+                elif app == '-ms-filter:' or app == 'filter:':
                     filter = True
 
                 # zero values
@@ -350,7 +344,10 @@ def minify(s, bufferOutput=True, debug=False):
                 buf += app
 
                 if filter and (buf[-1] == ')' or buf[-2] == ')'):
-                    buf = re.sub(IEALPHA, r'\1alpha(opacity=\3)\4', buf)
+                    x = buf.lower().find(IEALPHA)
+                    if x >= 0:
+                        y = x + len(IEALPHA)
+                        buf = buf[0:x] + 'alpha(opacity=' + buf[y:]
                     filter = False
 
                 #  #AABBCC
