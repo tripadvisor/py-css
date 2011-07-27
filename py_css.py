@@ -78,8 +78,7 @@ def tokenize(char):
             return token
     return Token()
 
-ZERO_VALUES = re.compile(r'\b0(?:px|pt|in|cm|mm|em|%|pc|ex)')
-SMALL_FLOATS = re.compile('0\.(\d+)(px|pt|in|cm|mm|em|%|pc|ex|)')
+UNITS = ('px', 'em', 'pt', 'in', 'cm', 'mm', 'pc', 'ex')
 IEALPHA = re.compile('("?)(progid\:DXImageTransform\.Microsoft\.Alpha\(Opacity\=)(\d+)\)("?)', re.I)
 
 def toHex(n):
@@ -87,7 +86,7 @@ def toHex(n):
     if len(h) == 1: h = '0' + h
     return h
 
-def minify(s, bufferOutput=True):
+def minify(s, bufferOutput=True, debug=False):
     """Minify a string of CSS.
     """
     buf = ''
@@ -107,6 +106,8 @@ def minify(s, bufferOutput=True):
     media    = False
     rule     = False
     ruleEnd  = False
+
+    if not bufferOutput and debug: bufferOutput = True
 
     for i, c in enumerate(s):
         if comment:
@@ -295,7 +296,11 @@ def minify(s, bufferOutput=True):
                                     x = z + 1
                                 z -= 1
                             buf = buf[0:x]
-                            out += buf
+                            if debug: print "{0:10}  |  {1:50}  |  {2:20}".format('empty rule', out, buf)
+                            if bufferOutput:
+                                out += buf
+                            else:
+                                if not debug: sys.stdout.write(buf)
                             buf = ''
                             continue
                         # drop last semi-colon
@@ -305,8 +310,24 @@ def minify(s, bufferOutput=True):
                 elif app == '-ms-filter' or app == 'filter:':
                     filter = True
 
-                app = re.sub(ZERO_VALUES, '0', app)
-                app = re.sub(SMALL_FLOATS, r'.\1\2', app)
+                # zero values
+                if len(app) >= 2 and app[0] == '0' and\
+                        (app[1:3] in UNITS or app[1] == '%'):
+                    if app[-1] == ';':
+                        app = '0;'
+                    else:
+                        app = '0'
+                elif len(app) >= 3 and app[0:2] == ' 0' and (app[2] == '%' or\
+                        (len(app) >= 4 and app[2:4] in UNITS)):
+                    if app[-1] == ';':
+                        app = ' 0;'
+                    else:
+                        app = ' 0'
+                # small floats
+                elif len(app) >= 3 and app[0:2] == '0.':
+                    app = app[1:]
+                elif len(app) >= 4 and app[0:3] == ' 0.':
+                    app = ' ' + app[2:]
 
                 buf += app
 
@@ -362,21 +383,34 @@ def minify(s, bufferOutput=True):
                     buf = buf[0:-1] + ' ' + buf[-1]
 
                 if ruleEnd:
+                    if debug: print "{0:10}  |  {1:50}  |  {2:20}".format('rule end', out, buf)
                     if bufferOutput:
                         out += buf
                     else:
-                        sys.stdout.write(buf)
+                        if not debug: sys.stdout.write(buf)
                     buf = ''
                     ruleEnd = False
 
-    return out + buf
+    if debug: print "{0:10}  |  {1:50}  |  {2:20}".format('eof', out, buf)
+    if not bufferOutput:
+        if not debug: sys.stdout.write(buf)
+    else:
+        return out + buf
 
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) > 1:
-        with open(sys.argv[1], 'r') as f:
-            css = f.read()
+    from optparse import OptionParser
+    parser = OptionParser()
+    parser.add_option("-d", "--debug",
+                      action="store_true", dest="debug", default=False,
+                      help="print debugging messages")
+    (options, args) = parser.parse_args()
+    if len(args) >= 1:
+        for filename in args:
+            with open(filename, 'r') as f:
+                css = f.read()
+                minify(css, False, options.debug)
     else:
         css = sys.stdin.read()
-    m = minify(css, False)
+        minify(css, False, options.debug)
