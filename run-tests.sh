@@ -32,7 +32,7 @@ failures=0
 for file in tests/*.css; do
   tests=$tests+1
   rpad $file 40 "."
-  python py-css.py < $file | diff -q $file.min - >/dev/null
+  python py_css.py < $file | diff -q $file.min - >/dev/null
   if [[ $? == 0 ]]; then
     cecho "PASS" $green
   else

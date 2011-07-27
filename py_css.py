@@ -87,10 +87,11 @@ def toHex(n):
     if len(h) == 1: h = '0' + h
     return h
 
-def ncss(s):
+def minify(s, bufferOutput=True):
     """Minify a string of CSS.
     """
     buf = ''
+    out = ''
     tmp = ''
     app = ''
     boundary = True
@@ -105,6 +106,7 @@ def ncss(s):
     space    = False
     media    = False
     rule     = False
+    ruleEnd  = False
 
     for i, c in enumerate(s):
         if comment:
@@ -281,21 +283,25 @@ def ncss(s):
                 if rule and app[-1] != '{':
                     app = app.lower()
                 if app == '}':
-                    # empty rule
-                    if buf[-1] == '{':
-                        x = 0
-                        z = len(buf) - 2
-                        while x == 0 and z >= 0:
-                            if buf[z] == '{' or buf[z] == '}' or\
-                                    buf[z] == ';' or (buf[z] == '/' and\
-                                    buf[z-1] == '*'):
-                                x = z + 1
-                            z -= 1
-                        buf = buf[0:x]
-                        continue
-                    # drop last semi-colon
-                    elif buf[-1] == ';':
-                        buf = buf[0:-1]
+                    if len(buf) > 0:
+                        # empty rule
+                        if buf[-1] == '{':
+                            x = 0
+                            z = len(buf) - 2
+                            while x == 0 and z >= 0:
+                                if buf[z] == '{' or buf[z] == '}' or\
+                                        buf[z] == ';' or (buf[z] == '/' and\
+                                        buf[z-1] == '*'):
+                                    x = z + 1
+                                z -= 1
+                            buf = buf[0:x]
+                            out += buf
+                            buf = ''
+                            continue
+                        # drop last semi-colon
+                        elif buf[-1] == ';':
+                            buf = buf[0:-1]
+                    ruleEnd = True
                 elif app == '-ms-filter' or app == 'filter:':
                     filter = True
 
@@ -309,12 +315,12 @@ def ncss(s):
                     filter = False
 
                 #  #AABBCC
-                if len(buf) >= 8 and buf[-1] != '"' and buf[-8] == '#' and\
-                        buf[-7].lower() == buf[-6].lower() and\
-                        buf[-5].lower() == buf[-4].lower() and\
-                        buf[-3].lower() == buf[-2].lower():
-                    c = buf[-6] + buf[-4] + buf[-2] + buf[-1]
-                    buf = buf[0:-7] + c.lower()
+                if len(buf) >= 8 and buf[-1] != '"' and buf[-8] == '#':
+                    lbuf = buf[-7:].lower()
+                    if lbuf[0] == lbuf[1] and lbuf[2] == lbuf[3] and\
+                            lbuf[4] == lbuf[5]:
+                        c = lbuf[0] + lbuf[2] + lbuf[4] + buf[-1]
+                        buf = buf[0:-7] + c
 
                 # margin:0
                 if buf[-15:-1] == 'margin:0 0 0 0':
@@ -355,12 +361,22 @@ def ncss(s):
                         or buf[-12:-1] == ':first-line':
                     buf = buf[0:-1] + ' ' + buf[-1]
 
-    return buf
+                if ruleEnd:
+                    if bufferOutput:
+                        out += buf
+                    else:
+                        sys.stdout.write(buf)
+                    buf = ''
+                    ruleEnd = False
+
+    return out + buf
 
 
 if __name__ == "__main__":
     import sys
-    css = sys.stdin.read()
-    m = ncss(css)
-    sys.stdout.write(m)
-
+    if len(sys.argv) > 1:
+        with open(sys.argv[1], 'r') as f:
+            css = f.read()
+    else:
+        css = sys.stdin.read()
+    m = minify(css, False)
