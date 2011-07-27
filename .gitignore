@@ -1,2 +1,7 @@
 *.pyc
 *.css
+.Python
+bin/
+include/
+lib/
+py_css.egg-info/

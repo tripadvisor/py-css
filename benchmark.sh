@@ -75,9 +75,6 @@ run()
   echo "$avg"
 }
 
-# make sure .py file has been compiled
-python -c 'import py_css' 2>&1 >/dev/null
-
 files=()
 benches=()
 commands=()
@@ -85,7 +82,7 @@ commands=()
 addPy()
 {
   benches+=('py-css')
-  commands+=('python py_css.pyc')
+  commands+=('./runner.py')
 }
 
 addN()
