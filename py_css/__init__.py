@@ -4,11 +4,13 @@ import sys
 from optparse import OptionParser
 from py_css.token import *
 
-UNITS = set(('px', 'em', 'pt', 'in', 'cm', 'mm', 'pc', 'ex'))
-IEALPHA = 'progid:dximagetransform.microsoft.alpha(opacity='
-
 def minify(s, bufferOutput=True, debug=False):
     """Minify a string of CSS."""
+
+    UNITS = set(('px', 'em', 'pt', 'in', 'cm', 'mm', 'pc', 'ex'))
+    IEALPHA = 'progid:dximagetransform.microsoft.alpha(opacity='
+    IEALPHA_len = len(IEALPHA)
+
     buf = ''
     out = ''
     tmp = ''
@@ -26,8 +28,26 @@ def minify(s, bufferOutput=True, debug=False):
     media    = False
     rule     = False
     ruleEnd  = False
+    _token = tokenize
+
+    def _write(buf):
+        pass
+
+    def _write_buf(buf):
+        out += buf
+        return ''
+
+    _stdout_write = sys.stdout.write
+    def _write_out(buf):
+        _stdout_write(buf)
+        return ''
 
     if not bufferOutput and debug: bufferOutput = True
+
+    if bufferOutput:
+        _write = _write_buf
+    elif not debug:
+        _write = _write_out
 
     for c in s:
         if comment:
@@ -54,18 +74,18 @@ def minify(s, bufferOutput=True, debug=False):
                 if filter and buf[-2] == ')':
                     x = buf.lower().find(IEALPHA)
                     if x >= 0:
-                        y = x + len(IEALPHA)
-                        buf = buf[0:x] + 'alpha(opacity=' + buf[y:]
+                        y = x + IEALPHA_len
+                        buf = "%s%s%s" % (buf[:x], 'alpha(opacity=', buf[y:])
                     filter = False
             continue
 
         app = ''
-        token = tokenize(c)
+        token = _token(c)
 
         if token == Whitespace:
             if rgb:
                 if tmp:
-                    app += '%02x' % int(tmp[0:-1])
+                    app += '%02x' % int(tmp[:-1])
                 tmp = ''
             else:
                 if not boundary:
@@ -94,29 +114,33 @@ def minify(s, bufferOutput=True, debug=False):
             if not boundary: app += ' '
             boundary = True
             space = False
-            app += tmp
-            app += c
+            app += "%s%s" %(tmp, c)
+            #app += tmp
+            #app += c
             tmp = ''
         elif token == Equals:
             if not boundary: app += ' '
             boundary = True
             space = False
-            app += tmp
-            app += c
+            app += "%s%s" %(tmp, c)
+            #app += tmp
+            #app += c
             tmp = ''
         elif token == Colon:
             if space and not rule: app += ' '
             boundary = True
             space = False
-            app += tmp
-            app += c
+            app += "%s%s" %(tmp, c)
+            #app += tmp
+            #app += c
             tmp = ''
         elif token == Period or token == Hyphen:
             if not rule:
                 if space and not boundary: app += ' '
                 boundary = True
-                app += tmp
-                app += c
+                app += "%s%s" %(tmp, c)
+                #app += tmp
+                #app += c
                 tmp = ''
             else:
                 tmp += c
@@ -126,35 +150,40 @@ def minify(s, bufferOutput=True, debug=False):
             boundary = True
             space = False
             rule = True
-            app += tmp
-            app += c
+            app += "%s%s" %(tmp, c)
+            #app += tmp
+            #app += c
             tmp = ''
         elif token == RightBrace:
             if not boundary and tmp: app += ' '
             boundary = True
             space = False
             rule = False
-            app += tmp
-            app += c
+            app += "%s%s" %(tmp, c)
+            #app += tmp
+            #app += c
             tmp = ''
         elif token == RightBracket:
             boundary = False
             space = False
-            app += tmp
-            app += c
+            app += "%s%s" %(tmp, c)
+            #app += tmp
+            #app += c
             tmp = ''
         elif token == LeftParen:
             if not boundary: app += ' '
             boundary = True
             space = True
-            app += tmp
-            app += c
+            app += "%s%s" %(tmp, c)
+            #app += tmp
+            #app += c
             tmp = ''
         elif token == GT:
             boundary = True
             space = False
-            app += tmp
-            app += c
+            app += "%s%s" %(tmp, c)
+            #app += tmp
+            #app += c
             tmp = ''
         elif token == Comma:
             boundary = True
@@ -162,8 +191,9 @@ def minify(s, bufferOutput=True, debug=False):
             if rgb:
                 app += '%02x' % int(tmp)
             else:
-                app += tmp
-                app += c
+                app += "%s%s" %(tmp, c)
+                #app += tmp
+                #app += c
             tmp = ''
         elif token == SemiColon:
             if not boundary: app += ' '
@@ -219,17 +249,13 @@ def minify(s, bufferOutput=True, debug=False):
                                         buf[z-1] == '*')):
                                     x = z + 1
                                 z -= 1
-                            buf = buf[0:x]
+                            buf = buf[:x]
                             if debug: print "{0:10}  |  {1:50}  |  {2:20}".format('empty rule', out, buf)
-                            if bufferOutput:
-                                out += buf
-                            else:
-                                if not debug: sys.stdout.write(buf)
-                            buf = ''
+                            buf = _write(buf)
                             continue
                         # drop last semi-colon
                         elif buf[-1] == ';':
-                            buf = buf[0:-1]
+                            buf = buf[:-1]
                     ruleEnd = True
                 elif app == '-ms-filter:' or app == 'filter:':
                     filter = True
@@ -259,8 +285,8 @@ def minify(s, bufferOutput=True, debug=False):
                 if filter and (buf[-1] == ')' or buf[-2] == ')'):
                     x = buf.lower().find(IEALPHA)
                     if x >= 0:
-                        y = x + len(IEALPHA)
-                        buf = buf[0:x] + 'alpha(opacity=' + buf[y:]
+                        y = x + IEALPHA_len
+                        buf = "%s%s%s" % (buf[:x], 'alpha(opacity=', buf[y:])
                     filter = False
 
                 #  #AABBCC
@@ -268,55 +294,50 @@ def minify(s, bufferOutput=True, debug=False):
                     lbuf = buf[-7:].lower()
                     if (lbuf[0] == lbuf[1] and lbuf[2] == lbuf[3] and
                             lbuf[4] == lbuf[5]):
-                        c = lbuf[0] + lbuf[2] + lbuf[4] + buf[-1]
-                        buf = buf[0:-7] + c
+                        buf = "%s%s%s%s%s" % (buf[0:-7], lbuf[0], lbuf[2], lbuf[4], buf[-1])
 
                 # margin:0
                 if buf[-15:-1] == 'margin:0 0 0 0':
-                    buf = buf[0:-15] + 'margin:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-15], 'margin:0', buf[-1])
                 elif buf[-13:-1] == 'margin:0 0 0':
-                    buf = buf[0:-13] + 'margin:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-13], 'margin:0', buf[-1])
                 elif buf[-11:-1] == 'margin:0 0':
-                    buf = buf[0:-11] + 'margin:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-11], 'margin:0', buf[-1])
                 # padding:0
                 elif buf[-16:-1] == 'padding:0 0 0 0':
-                    buf = buf[0:-16] + 'padding:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-16], 'padding:0', buf[-1])
                 elif buf[-14:-1] == 'padding:0 0 0':
-                    buf = buf[0:-14] + 'padding:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-14], 'padding:0', buf[-1])
                 elif buf[-12:-1] == 'padding:0 0':
-                    buf = buf[0:-12] + 'padding:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-12], 'padding:0', buf[-1])
                 # border
                 elif buf[-12:-1] == 'border:none':
-                    buf = buf[0:-12] + 'border:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-12], 'border:0', buf[-1])
                 elif buf[-16:-1] == 'border-top:none':
-                    buf = buf[0:-16] + 'border-top:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-16], 'border-top:0', buf[-1])
                 elif buf[-19:-1] == 'border-bottom:none':
-                    buf = buf[0:-19] + 'border-bottom:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-19], 'border-bottom:0', buf[-1])
                 elif buf[-17:-1] == 'border-left:none':
-                    buf = buf[0:-17] + 'border-left:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-17], 'border-left:0', buf[-1])
                 elif buf[-18:-1] == 'border-right:none':
-                    buf = buf[0:-18] + 'border-right:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-18], 'border-right:0', buf[-1])
                 # outline
                 elif buf[-13:-1] == 'outline:none':
-                    buf = buf[0:-13] + 'outline:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-13], 'outline:0', buf[-1])
                 # background
                 elif buf[-16:-1] == 'background:none':
-                    buf = buf[0:-16] + 'background:0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-16], 'background:0', buf[-1])
                 # background-position
                 elif buf[-28:-1] == 'background-position:0 0 0 0':
-                    buf = buf[0:-28] + 'background-position:0 0' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-28], 'background-position:0 0', buf[-1])
                 # :first-letter and :first-line must be followed by a space
                 elif buf[-14:-1] == ':first-letter'\
                         or buf[-12:-1] == ':first-line':
-                    buf = buf[0:-1] + ' ' + buf[-1]
+                    buf = "%s%s%s" % (buf[0:-1], ' ', buf[-1])
 
                 if ruleEnd:
                     if debug: print "{0:10}  |  {1:50}  |  {2:20}".format('rule end', out, buf)
-                    if bufferOutput:
-                        out += buf
-                    else:
-                        if not debug: sys.stdout.write(buf)
-                    buf = ''
+                    buf = _write(buf)
                     ruleEnd = False
 
     if debug: print "{0:10}  |  {1:50}  |  {2:20}".format('eof', out, buf)
