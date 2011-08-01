@@ -84,7 +84,8 @@ def minify(s, bufferOutput=True, debug=False):
                 app += ' '
             boundary = True
             space = False
-            tmp += c
+            app += tmp
+            tmp = c
         elif token == Star:
             if tmp == '/' and (not buf or buf[-1] != '>'):
                 comment = True
@@ -108,7 +109,7 @@ def minify(s, bufferOutput=True, debug=False):
             app += c
             tmp = ''
         elif token == Colon:
-            if space and not rule: app += ' '
+            if (space or not boundary) and not rule: app += ' '
             boundary = True
             space = False
             app += tmp
@@ -210,7 +211,8 @@ def minify(s, bufferOutput=True, debug=False):
             space = False
 
         if app:
-            #print "> " + app
+            if app == ' ': continue
+            #print "> " + app + "<"
             if app == '@charset':
                 if charset:
                     skip = True
