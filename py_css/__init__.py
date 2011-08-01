@@ -113,7 +113,7 @@ def minify(s, bufferOutput=True, debug=False):
             tmp = ''
         elif token == Period:
             if not rule:
-                if (space and not boundary) or (tmp and tmp[0] == '#'):
+                if (space and not boundary) or (tmp and buf[-1] != '.'):
                     app += ' '
                 boundary = True
                 app += tmp
