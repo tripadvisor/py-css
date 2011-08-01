@@ -28,6 +28,7 @@ def minify(s, bufferOutput=True, debug=False):
     rule     = False
     ruleEnd  = False
     font     = False
+    fontEnd  = False
 
     if not bufferOutput and debug: bufferOutput = True
 
@@ -194,17 +195,13 @@ def minify(s, bufferOutput=True, debug=False):
                         buf = buf[0:-4]
                     app += c
                     tmp = ''
-                    rgb = False
                 else:
-                    if font and tmp in KEYWORDS:
-                        app = tmp.lower()
-                    else:
-                        app += tmp
+                    app += tmp
                     if buf[-1] != ';' and buf[-1] != '{':
                         app += ';'
                     tmp = ''
-                    rgb = False
-            font = False
+            rgb = False
+            if font: fontEnd = True
         elif token == Bang:
             boundary = True
             tmp += c
@@ -229,9 +226,22 @@ def minify(s, bufferOutput=True, debug=False):
             elif not skip:
                 if rule:
                     if font:
-                        la = app.lower();
+                        a = 0
+                        b = len(app)
+                        cs = ''
+                        ce = ''
+                        if app[0] == ' ':
+                            a = 1
+                            cs = ' '
+                        if app[-1] == ';':
+                            b -= 1
+                            ce = ';'
+                        la = app[a:b].lower();
                         if la in KEYWORDS:
-                            app = la
+                            app = cs + la + ce
+                        if fontEnd:
+                            font = False
+                            fontEnd = False
                     elif app[-1] != '{' and buf[-1] != '(':
                         app = app.lower()
 
