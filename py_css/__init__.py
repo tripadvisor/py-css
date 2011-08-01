@@ -111,7 +111,18 @@ def minify(s, bufferOutput=True, debug=False):
             app += tmp
             app += c
             tmp = ''
-        elif token == Period or token == Hyphen:
+        elif token == Period:
+            if not rule:
+                if (space and not boundary) or (tmp and tmp[0] == '#'):
+                    app += ' '
+                boundary = True
+                app += tmp
+                app += c
+                tmp = ''
+            else:
+                tmp += c
+            space = False
+        elif token == Hyphen:
             if not rule:
                 if space and not boundary: app += ' '
                 boundary = True
@@ -196,7 +207,7 @@ def minify(s, bufferOutput=True, debug=False):
             space = False
 
         if app:
-            #print app
+            #print "> " + app
             if app == '@charset':
                 if charset:
                     skip = True
