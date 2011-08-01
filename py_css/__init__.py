@@ -221,7 +221,7 @@ def minify(s, bufferOutput=True, debug=False):
                 rgb = True
                 buf += '#'
             elif not skip:
-                if rule and app[-1] != '{':
+                if rule and app[-1] != '{' and buf[-1] != '(':
                     app = app.lower()
                 if app == '}':
                     if buf:
