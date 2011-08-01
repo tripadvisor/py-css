@@ -6,6 +6,7 @@ from py_css.token import *
 
 UNITS = set(('px', 'em', 'pt', 'in', 'cm', 'mm', 'pc', 'ex'))
 IEALPHA = 'progid:dximagetransform.microsoft.alpha(opacity='
+KEYWORDS = set(('normal', 'bold', 'italic', 'serif', 'sans-serif', 'fixed'))
 
 def minify(s, bufferOutput=True, debug=False):
     """Minify a string of CSS."""
@@ -26,6 +27,7 @@ def minify(s, bufferOutput=True, debug=False):
     media    = False
     rule     = False
     ruleEnd  = False
+    font     = False
 
     if not bufferOutput and debug: bufferOutput = True
 
@@ -113,7 +115,7 @@ def minify(s, bufferOutput=True, debug=False):
             tmp = ''
         elif token == Period:
             if not rule:
-                if (space and not boundary) or (tmp and (not buf or buf[-1] != '.')):
+                if not boundary and (space or (tmp and (not buf or buf[-1] != '.'))):
                     app += ' '
                 boundary = True
                 app += tmp
@@ -194,11 +196,15 @@ def minify(s, bufferOutput=True, debug=False):
                     tmp = ''
                     rgb = False
                 else:
-                    app += tmp
+                    if font and tmp in KEYWORDS:
+                        app = tmp.lower()
+                    else:
+                        app += tmp
                     if buf[-1] != ';' and buf[-1] != '{':
                         app += ';'
                     tmp = ''
                     rgb = False
+            font = False
         elif token == Bang:
             boundary = True
             tmp += c
@@ -221,8 +227,14 @@ def minify(s, bufferOutput=True, debug=False):
                 rgb = True
                 buf += '#'
             elif not skip:
-                if rule and app[-1] != '{' and buf[-1] != '(':
-                    app = app.lower()
+                if rule:
+                    if font:
+                        la = app.lower();
+                        if la in KEYWORDS:
+                            app = la
+                    elif app[-1] != '{' and buf[-1] != '(':
+                        app = app.lower()
+
                 if app == '}':
                     if buf:
                         # empty rule
@@ -249,6 +261,12 @@ def minify(s, bufferOutput=True, debug=False):
                     ruleEnd = True
                 elif app == '-ms-filter:' or app == 'filter:':
                     filter = True
+                    buf += app
+                    continue
+                elif app == 'font-family:' or app == 'font:':
+                    font = True
+                    buf += app
+                    continue
 
                 # zero values
                 app_len = len(app)
