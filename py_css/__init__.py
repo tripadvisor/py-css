@@ -113,7 +113,7 @@ def minify(s, bufferOutput=True, debug=False):
             tmp = ''
         elif token == Period:
             if not rule:
-                if (space and not boundary) or (tmp and buf[-1] != '.'):
+                if (space and not boundary) or (tmp and (not buf or buf[-1] != '.')):
                     app += ' '
                 boundary = True
                 app += tmp
@@ -273,6 +273,12 @@ def minify(s, bufferOutput=True, debug=False):
                     app = app[1:]
                 elif app_len >= 4 and app[0:3] == ' 0.':
                     app = ' ' + app[2:]
+
+                #  #AABBCC
+                if len(app) == 7 and app[0] == '#':
+                    la = app.lower();
+                    if la[1] == la[2] and la[3] == la[4] and la[5] == la[6]:
+                        app = app[0] + la[1] + la[3] + la[5]
 
                 buf += app
 
