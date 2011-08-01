@@ -157,14 +157,15 @@ def minify(s, bufferOutput=True, debug=False):
             app += c
             tmp = ''
         elif token == Comma:
-            boundary = True
-            space = False
             if rgb:
                 app += '%02x' % int(tmp)
             else:
+                if not boundary: app += ' '
                 app += tmp
                 app += c
             tmp = ''
+            boundary = True
+            space = False
         elif token == SemiColon:
             if not boundary: app += ' '
             boundary = True
@@ -240,12 +241,16 @@ def minify(s, bufferOutput=True, debug=False):
                         (app[1:3] in UNITS or app[1] == '%')):
                     if app[-1] == ';':
                         app = '0;'
+                    elif app[-1] == ',':
+                        app = '0,'
                     else:
                         app = '0'
                 elif (app_len >= 3 and app[0:2] == ' 0' and (app[2] == '%' or
                         app_len >= 4 and app[2:4] in UNITS)):
                     if app[-1] == ';':
                         app = ' 0;'
+                    elif app[-1] == ',':
+                        app = ' 0,'
                     else:
                         app = ' 0'
                 # small floats
