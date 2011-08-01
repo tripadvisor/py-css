@@ -29,6 +29,8 @@ def minify(s, bufferOutput=True, debug=False):
     ruleEnd  = False
     font     = False
     fontEnd  = False
+    case     = False
+    caseEnd  = False
 
     if not bufferOutput and debug: bufferOutput = True
 
@@ -165,6 +167,23 @@ def minify(s, bufferOutput=True, debug=False):
             app += tmp
             app += c
             tmp = ''
+            case = True
+        elif token == RightParen:
+            boundary = False
+            space = False
+            if rgb:
+                app += '%02x' % int(tmp)
+                if (len(app) >= 2 and app[0] == app[1] and
+                        buf[-1] == buf[-2] and buf[-3] == buf[-4]):
+                    app = buf[-3] + buf[-1] + app[0]
+                    buf = buf[0:-4]
+                tmp = ''
+                boundary = True
+            else:
+                app += tmp
+                app += c
+                tmp = ''
+            caseEnd = True
         elif token == GT:
             boundary = True
             space = False
@@ -175,32 +194,23 @@ def minify(s, bufferOutput=True, debug=False):
             if rgb:
                 app += '%02x' % int(tmp)
             else:
-                if not boundary: app += ' '
+                if not boundary and buf[-1] != ')': app += ' '
                 app += tmp
                 app += c
             tmp = ''
             boundary = True
             space = False
         elif token == SemiColon:
-            if not boundary: app += ' '
+            if not boundary and buf[-1] != ')': app += ' '
             boundary = True
             Space = False
             if skip:
                 skip = False
             else:
-                if rgb:
-                    app += '%02x' % int(tmp[0:-1])
-                    if len(app) >= 2 and app[0] == app[1] and\
-                            buf[-1] == buf[-2] and buf[-3] == buf[-4]:
-                        app = buf[-3] + buf[-1] + app[0]
-                        buf = buf[0:-4]
-                    app += c
-                    tmp = ''
-                else:
-                    app += tmp
-                    if buf[-1] != ';' and buf[-1] != '{':
-                        app += ';'
-                    tmp = ''
+                app += tmp
+                if buf[-1] != ';' and buf[-1] != '{':
+                    app += ';'
+                tmp = ''
             rgb = False
             if font: fontEnd = True
         elif token == Bang:
@@ -244,8 +254,11 @@ def minify(s, bufferOutput=True, debug=False):
                         if fontEnd:
                             font = False
                             fontEnd = False
-                    elif app[-1] != '{' and buf[-1] != '(':
+                    elif not case and app[-1] != '{' and buf[-1] != '(':
                         app = app.lower()
+                        if caseEnd:
+                            case = False
+                            caseEnd = False
 
                 if app == '}':
                     if buf:

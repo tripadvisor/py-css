@@ -61,6 +61,11 @@ class LeftParen(Token):
     def matches():
         return ('(')
 
+class RightParen(Token):
+    @staticmethod
+    def matches():
+        return (')')
+
 class GT(Token):
     @staticmethod
     def matches():
@@ -83,7 +88,7 @@ class Bang(Token):
 
 TOKENS = [Whitespace, Slash, Star, Quote, Equals, Colon, Period,
           Hyphen, LeftBrace, RightBrace, RightBracket, LeftParen,
-          GT, Comma, SemiColon, Bang]
+          GT, Comma, SemiColon, Bang, RightParen]
 TOKEN_MAP = {}
 
 for token in TOKENS:
