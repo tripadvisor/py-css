@@ -76,9 +76,14 @@ class SemiColon(Token):
     def matches():
         return (';')
 
+class Bang(Token):
+    @staticmethod
+    def matches():
+        return ('!')
+
 TOKENS = [Whitespace, Slash, Star, Quote, Equals, Colon, Period,
           Hyphen, LeftBrace, RightBrace, RightBracket, LeftParen,
-          GT, Comma, SemiColon]
+          GT, Comma, SemiColon, Bang]
 TOKEN_MAP = {}
 
 for token in TOKENS:

@@ -188,11 +188,15 @@ def minify(s, bufferOutput=True, debug=False):
                         app += ';'
                     tmp = ''
                     rgb = False
+        elif token == Bang:
+            boundary = True
+            tmp += c
         else:
             tmp += c
             space = False
 
         if app:
+            #print app
             if app == '@charset':
                 if charset:
                     skip = True
